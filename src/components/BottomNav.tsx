@@ -16,6 +16,7 @@ export function BottomNav() {
 
   const adminLinks = [
     { href: "/admin", label: "Inicio", icon: HomeIcon },
+    { href: "/admin/clients", label: "Clientes", icon: UsersIcon },
     { href: "/admin/bookings", label: "Reservas", icon: ListIcon },
     { href: "/admin/slots", label: "Horarios", icon: ClockIcon },
   ];
@@ -83,6 +84,14 @@ function ClockIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function UsersIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   );
 }

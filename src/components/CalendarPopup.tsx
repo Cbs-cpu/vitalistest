@@ -38,9 +38,11 @@ interface CalendarPopupProps {
   onClose: () => void;
   onBooked: () => void;
   rescheduleBookingId?: string | null;
+  mode?: "client" | "admin";
+  userId?: string;
 }
 
-export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: CalendarPopupProps) {
+export function CalendarPopup({ onClose, onBooked, rescheduleBookingId, mode = "client", userId }: CalendarPopupProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sessions, setSessions] = useState<ClassSession[]>([]);
@@ -49,12 +51,14 @@ export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: Calend
   const [message, setMessage] = useState("");
   const [monthlyCount, setMonthlyCount] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
+  const isAdmin = mode === "admin";
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
   const fetchDashboardData = async () => {
+    if (isAdmin) return;
     const res = await fetch("/api/bookings?action=mybookings");
     if (res.ok) {
       const data = await res.json();
@@ -92,6 +96,26 @@ export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: Calend
   const handleBook = async (sessionId: string) => {
     if (actionLoading) return;
 
+    if (isAdmin && userId) {
+      setActionLoading(true);
+      setMessage("");
+      const res = await fetch("/api/admin/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, classSessionId: sessionId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage("¡Reserva creada!");
+        fetchSessions(currentMonth);
+        setTimeout(() => onBooked(), 1000);
+      } else {
+        setMessage(data.error || "Error al crear reserva");
+      }
+      setActionLoading(false);
+      return;
+    }
+
     if (rescheduleBookingId) {
       setActionLoading(true);
       setMessage("");
@@ -117,9 +141,7 @@ export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: Calend
 
       if (bookRes.ok) {
         setMessage("¡Reagendada con éxito!");
-        setTimeout(() => {
-          onBooked();
-        }, 1000);
+        setTimeout(() => onBooked(), 1000);
       } else {
         setMessage(bookData.error || "Error al reagendar");
       }
@@ -127,7 +149,7 @@ export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: Calend
       return;
     }
 
-    if (monthlyCount >= 8) {
+    if (!isAdmin && monthlyCount >= 8) {
       setMessage("Has alcanzado el límite de 8 clases este mes");
       return;
     }
@@ -146,23 +168,25 @@ export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: Calend
       setMessage("¡Reserva confirmada!");
       fetchSessions(currentMonth);
       fetchDashboardData();
-      setTimeout(() => {
-        onBooked();
-      }, 1000);
+      setTimeout(() => onBooked(), 1000);
     } else {
       setMessage(data.error || "Error al reservar");
     }
     setActionLoading(false);
   };
 
+  const title = isAdmin
+    ? "Agendar sesión"
+    : rescheduleBookingId
+    ? "Reagendar sesión"
+    : "Agendar sesión";
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={() => !actionLoading && onClose()} />
       <div className="relative bg-vitalis-gray w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-vitalis-gray-light p-4 space-y-4 animate-slide-up">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white">
-            {rescheduleBookingId ? "Reagendar sesión" : "Agendar sesión"}
-          </h2>
+          <h2 className="text-lg font-bold text-white">{title}</h2>
           <button
             onClick={onClose}
             disabled={actionLoading}
@@ -177,7 +201,7 @@ export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: Calend
         {message && (
           <div
             className={`p-3 rounded-xl text-sm text-center ${
-              message.includes("confirmada") || message.includes("éxito")
+              message.includes("confirmada") || message.includes("éxito") || message.includes("creada")
                 ? "bg-vitalis-green/20 text-vitalis-accent border border-vitalis-green/30"
                 : "bg-red-500/10 text-red-400 border border-red-500/20"
             }`}
@@ -257,6 +281,8 @@ export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: Calend
                 {sessionsOnDate.map((session) => {
                   const available = session.currentCapacity < session.scheduleSlot.maxCapacity;
                   const isFull = !available;
+                  const buttonDisabled = isFull || (!isAdmin && monthlyCount >= 8) || actionLoading;
+
                   return (
                     <div
                       key={session.id}
@@ -273,11 +299,11 @@ export function CalendarPopup({ onClose, onBooked, rescheduleBookingId }: Calend
                         </p>
                       </div>
                       <button
-                        disabled={isFull || monthlyCount >= 8 || actionLoading}
+                        disabled={buttonDisabled}
                         onClick={() => handleBook(session.id)}
                         className="px-4 py-2 rounded-lg bg-vitalis-green hover:bg-vitalis-green-light text-white text-sm font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        {isFull ? "Completo" : rescheduleBookingId ? "Reagendar" : "Reservar"}
+                        {isFull ? "Completo" : isAdmin ? "Reservar" : rescheduleBookingId ? "Reagendar" : "Reservar"}
                       </button>
                     </div>
                   );

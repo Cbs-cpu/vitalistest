@@ -1,6 +1,5 @@
 {
-  "buildCommand": "prisma generate && prisma db push --skip-generate && next build",
-  "devCommand": "next dev",
+  "buildCommand": "npx prisma db push --skip-generate && next build",
   "installCommand": "npm install",
   "framework": "nextjs"
 }
