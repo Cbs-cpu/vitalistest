@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  name               String
+  email              String             @unique
+  password           String
+  role               Role               @default(CLIENT)
+  stripeCustomerId   String?
+  subscriptionStatus SubscriptionStatus @default(INACTIVE)
+  stripeSubscriptionId String?
+  subscriptionEnd    DateTime?
+  bookings           Booking[]
+  monthlyCounts      MonthlyBookingCount[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model ScheduleSlot {
+  id            String         @id @default(cuid())
+  dayOfWeek     Int
+  startTime     String
+  endTime       String
+  maxCapacity   Int            @default(10)
+  classSessions ClassSession[]
+  createdAt     DateTime       @default(now())
+}
+
+model ClassSession {
+  id              String       @id @default(cuid())
+  scheduleSlotId  String
+  scheduleSlot    ScheduleSlot @relation(fields: [scheduleSlotId], references: [id])
+  date            DateTime
+  currentCapacity Int          @default(0)
+  bookings        Booking[]
+  createdAt       DateTime     @default(now())
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classSessionId  String
+  classSession    ClassSession  @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  status          BookingStatus @default(CONFIRMED)
+  createdAt       DateTime      @default(now())
+}
+
+model MonthlyBookingCount {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year    Int
+  month   Int
+  count   Int    @default(0)
+
+  @@unique([userId, year, month])
+}
